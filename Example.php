@@ -9,5 +9,6 @@ class Exapmle extends Model
 {
     use Enum;
 
-    protected $enum = ['culomn']; // An array of column names
+    // declare the enum columns you want to manage
+    protected $enum = ['status', 'type'];
 }
