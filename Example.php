@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-Use App\Models\Traits\Enum;
+use Vcx\Enum\Enum;
 use Illuminate\Database\Eloquent\Model; 
 
 class Exapmle extends Model
