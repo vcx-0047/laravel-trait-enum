@@ -1,6 +1,7 @@
 <?php
 
-namespace App\Models\Traits;
+
+namespace Vcx\Enum;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\DB;
