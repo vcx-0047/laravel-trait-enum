@@ -54,6 +54,74 @@ trait Enum
     }
 
     /**
+     * Add a new ENUM option for a given column
+     */
+    public static function setEnum(string $column, string $new): void
+    {
+        if (!self::hasEnumColumn($column)) {
+            throw new \InvalidArgumentException("Enum '{$column}' is not declared in the model.");
+        }
+
+        $instance = new static;
+        $table = $instance->getTable();
+
+        $type = DB::selectOne("SHOW COLUMNS FROM {$table} WHERE Field = '{$column}'")->Type;
+        preg_match('/^enum\((.*)\)$/', $type, $matches);
+        $options = array_map(fn($value) => trim($value, "'"), explode(',', $matches[1]));
+
+        if (in_array($new, $options, true)) {
+            throw new \InvalidArgumentException("Value '{$new}' already exists in ENUM column '{$column}'.");
+        }
+
+        $options[] = $new;
+        $enumString = implode("','", $options);
+
+        DB::statement("ALTER TABLE {$table} MODIFY {$column} ENUM('{$enumString}')");
+
+        return;
+    }
+
+    /**
+     * Remove an ENUM option for a given column
+     */
+    public static function removeEnum(string $column, string $value): void
+    {
+        if (!self::hasEnumColumn($column)) {
+            throw new \InvalidArgumentException("Enum '{$column}' is not declared in the model.");
+        }
+
+        $instance = new static;
+        $table = $instance->getTable();
+
+        $col = DB::selectOne("SHOW FULL COLUMNS FROM {$table} WHERE Field = '{$column}'");
+
+        preg_match('/^enum\((.*)\)$/', $col->Type, $matches);
+        $options = array_map(fn($v) => trim($v, "'"), explode(',', $matches[1]));
+
+        if (!in_array($value, $options, true)) {
+            throw new \InvalidArgumentException("Value '{$value}' does not exist in ENUM column '{$column}'.");
+        }
+
+        $count = DB::table($table)->where($column, $value)->count();
+        if ($count > 0) {
+            throw new \RuntimeException("Cannot remove '{$value}' because {$count} rows still use it.");
+        }
+
+        // Remove the value
+        $options = array_diff($options, [$value]);
+        $enumString = implode("','", $options);
+
+        // Preserve definition
+        $null = $col->Null === 'NO' ? 'NOT NULL' : 'NULL';
+        $default = $col->Default !== null ? "DEFAULT '{$col->Default}'" : '';
+        $collation = $col->Collation ? "COLLATE {$col->Collation}" : '';
+        $extra = $col->Extra ?? '';
+
+        DB::statement("ALTER TABLE {$table} MODIFY {$column} ENUM('{$enumString}') {$collation} {$null} {$default} {$extra}");
+    }
+
+
+    /**
      * Validate ENUM values before saving
      */
     protected static function validateEnum(Model $model): void
